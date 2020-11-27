@@ -26,7 +26,7 @@ def deconv(in_planes, out_planes, kernel_size=4, stride=2, padding=1):
     return nn.ConvTranspose2d(in_planes, out_planes, kernel_size, stride, padding, bias=True)
 
 class CorrDecoder(nn.Module):
-    def __init__(self, num_decoder_channels, max_displacement, lrelu_slope=0.01):
+    def __init__(self, num_decoder_channels, max_displacement=4, lrelu_slope=0.01):
         super(CorrDecoder, self).__init__()
         self.corr    = SpatialCorrelationSampler(kernel_size=1, patch_size=max_displacement * 2 + 1, stride=1, padding=0, dilation_patch=1)
         self.leakyRELU = nn.LeakyReLU(0.1)
@@ -90,13 +90,13 @@ class CorrDecoder(nn.Module):
                     m.bias.data.zero_()
 
 
-    def forward(self, input_features, predicted_inverse_depths, intrinsics):
-        last_features = [f[-1] for f in input_features]
-        c11, c12, c13, c14, c15 = input_features[0]
-        c21, c22, c23, c24, c25 = input_features[1]
+    def forward(self, all_features, all_outputs, intrinsics):
 
-        d11, d12, d13, d14, d15 = predicted_inverse_depths[0]
-        d21, d22, d23, d24, d25 = predicted_inverse_depths[1]
+        c11, c12, c13, c14, c15 = [feat[0] for feat in all_features]
+        c21, c22, c23, c24, c25 = [feat[1] for feat in all_features]
+
+        d12, d13, d14, d15 = [output[0] for output in all_outputs]
+        d22, d23, d24, d25 = [output[1] for output in all_outputs]
 
         i11, i12, i13, i14 = intrinsics
 

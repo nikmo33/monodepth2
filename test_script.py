@@ -11,9 +11,24 @@ import skimage.transform
 import numpy as np
 import PIL.Image as pil
 
-from kitti_utils import generate_depth_map
-from .mono_dataset import MonoDataset
+from datasets.mono_dataset import MonoDataset
+import time
 
+import torch
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from tensorboardX import SummaryWriter
+
+import json
+
+from utils import *
+from kitti_utils import *
+from layers import *
+
+import datasets
+import networks
+from IPython import embed
 
 class KITTIDataset(MonoDataset):
     """Superclass for different types of KITTI dataset loaders
@@ -134,3 +149,30 @@ class KITTIDepthDataset(KITTIDataset):
             depth_gt = np.fliplr(depth_gt)
 
         return depth_gt
+
+fpath = os.path.join(os.path.dirname(__file__), "splits", "eigen_zhou", "{}_files.txt")
+train_filenames = readlines(fpath.format("train"))
+val_filenames = readlines(fpath.format("val"))
+img_ext = '.png'
+train_dataset = KITTIRAWDataset('/mnt/remote/pure_dataset/perception_datasets/kitti_data', train_filenames, 192, 640,
+            [0, 1], 4, is_train=True, img_ext=img_ext)
+train_loader = DataLoader(
+            train_dataset, 2, True,
+            num_workers=1, pin_memory=True, drop_last=True)
+encoder = networks.ResnetEncoder(18, False)
+depth_decoder = networks.DepthDecoder(encoder.num_ch_enc)
+pose_decoder = networks.CorrDecoder(depth_decoder.num_ch_dec)
+for batch_idx, inputs in enumerate(train_loader):
+    all_color_aug = torch.cat([inputs[("color_aug", i, 0)] for i in [0, 1]])
+    all_features = encoder(all_color_aug)
+    print(f' encoder features shapes {[x.shape for x in all_features]}')
+    outputs, decoder_features = depth_decoder(all_features)
+    print(f' output shapes {[(key, value.shape) for key,value in outputs.items()]}')
+    print(f' decoder features shapes {[(key, value.shape) for key,value in decoder_features.items()]}')
+    all_outputs = [torch.split(outputs[('disp', scale)], 2) for scale in range(4)]
+    all_features = [torch.split(decoder_features[('features', scale)], 2) for scale in range(5)]
+    intrinsics = [inputs[("K", scale)] for scale in range(4)]
+    inv_intrinsics = [inputs[("inv_K", scale)] for scale in range(4)]
+    pose_outputs = pose_decoder(all_features, all_outputs, intrinsics)
+    print(pose_outputs)
+    break
