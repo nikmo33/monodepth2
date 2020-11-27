@@ -25,7 +25,7 @@ class DepthDecoder(nn.Module):
 
         self.num_ch_enc = num_ch_enc
         self.num_ch_dec = np.array([16, 32, 64, 128, 256])
-
+        self.decoder_channels = []
         # decoder
         self.convs = OrderedDict()
         for i in range(4, -1, -1):

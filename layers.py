@@ -267,3 +267,9 @@ def compute_depth_errors(gt, pred):
     sq_rel = torch.mean((gt - pred) ** 2 / gt)
 
     return abs_rel, sq_rel, rmse, rmse_log, a1, a2, a3
+
+def deconv(in_channels, out_channels, kernel_size=4, stride=2, bias=True):
+    """Returns a PyTorch module composed of deconvolution, batchnorm and a relu layer"""
+    return nn.ConvTranspose2d(
+        in_channels, out_channels, kernel_size=kernel_size, padding=(kernel_size - 1) // 2, stride=stride, bias=bias
+    )

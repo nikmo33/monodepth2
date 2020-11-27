@@ -20,7 +20,7 @@ class MonodepthOptions:
         self.parser.add_argument("--data_path",
                                  type=str,
                                  help="path to the training data",
-                                 default=os.path.join(file_dir, "kitti_data"))
+                                 default="/mnt/remote/pure_dataset/perception_datasets/kitti_data")
         self.parser.add_argument("--log_dir",
                                  type=str,
                                  help="log directory",
@@ -48,7 +48,8 @@ class MonodepthOptions:
                                  choices=["kitti", "kitti_odom", "kitti_depth", "kitti_test"])
         self.parser.add_argument("--png",
                                  help="if set, trains from raw KITTI png files (instead of jpgs)",
-                                 action="store_true")
+                                 action="store_true",
+                                 default=True)
         self.parser.add_argument("--height",
                                  type=int,
                                  help="input image height",
