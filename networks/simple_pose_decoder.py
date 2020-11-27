@@ -14,20 +14,20 @@ from collections import OrderedDict
 from layers import *
 
 
-class DepthDecoder(nn.Module):
-    def __init__(self, num_ch_enc, scales=range(4), num_output_channels=1, use_skips=True):
-        super(DepthDecoder, self).__init__()
+class SimplePoseDecoder(nn.Module):
+    def __init__(self, num_ch_enc, scales=range(4), num_output_channels=6, use_skips=True):
+        super(SimplePoseDecoder, self).__init__()
 
         self.num_output_channels = num_output_channels
         self.use_skips = use_skips
         self.upsample_mode = 'nearest'
         self.scales = scales
 
-        self.num_ch_enc = num_ch_enc
+        self.num_ch_enc = num_ch_enc * 2
         self.num_ch_dec = np.array([16, 32, 64, 128, 256])
         # decoder
         self.convs = OrderedDict()
-        for i in range(4, -1, -1):
+        for i in range(3, -1, -1):
             # upconv_0
             num_ch_in = self.num_ch_enc[-1] if i == 4 else self.num_ch_dec[i + 1]
             num_ch_out = self.num_ch_dec[i]
@@ -41,25 +41,23 @@ class DepthDecoder(nn.Module):
             self.convs[("upconv", i, 1)] = ConvBlock(num_ch_in, num_ch_out)
             
         for s in self.scales:
-            self.convs[("dispconv", s)] = Conv3x3(self.num_ch_dec[s], self.num_output_channels)
+            self.convs[("poseconv", s)] = Conv3x3(self.num_ch_dec[s], self.num_output_channels)
 
         self.decoder = nn.ModuleList(list(self.convs.values()))
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, input_features):
+    def forward(self, all_features, all_outputs, intrinsics):
+        input_features = [torch.cat((im1_feat, im2_feat),dim=1) for (im1_feat, im2_feat) in all_features]
         self.outputs = {}
-        self.features = {}
         # decoder
         x = input_features[-1]
-        for i in range(4, -1, -1):
+        for i in range(3, -1, -1):
             x = self.convs[("upconv", i, 0)](x)
-            x = [upsample(x)]
             if self.use_skips and i > 0:
                 x += [input_features[i - 1]]
             x = torch.cat(x, 1)
             x = self.convs[("upconv", i, 1)](x)
             if i in self.scales:
-                self.features[("features", i)] = x
-                self.outputs[("disp", i)] = self.sigmoid(self.convs[("dispconv", i)](x))
-
-        return self.outputs, self.features
+                self.outputs[("pose", i)] = self.sigmoid(self.convs[("poseconv", i)](x))
+            x = [upsample(x)]
+        return self.outputs

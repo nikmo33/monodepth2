@@ -161,7 +161,7 @@ train_loader = DataLoader(
             num_workers=1, pin_memory=True, drop_last=True)
 encoder = networks.ResnetEncoder(18, False)
 depth_decoder = networks.DepthDecoder(encoder.num_ch_enc)
-pose_decoder = networks.CorrDecoder(depth_decoder.num_ch_dec)
+pose_decoder = networks.SimplePoseDecoder(depth_decoder.num_ch_dec)
 for batch_idx, inputs in enumerate(train_loader):
     all_color_aug = torch.cat([inputs[("color_aug", i, 0)] for i in [0, 1]])
     all_features = encoder(all_color_aug)
@@ -174,5 +174,5 @@ for batch_idx, inputs in enumerate(train_loader):
     intrinsics = [inputs[("K", scale)] for scale in range(4)]
     inv_intrinsics = [inputs[("inv_K", scale)] for scale in range(4)]
     pose_outputs = pose_decoder(all_features, all_outputs, intrinsics)
-    print(pose_outputs)
+    print([(key, value.shape) for key, value in pose_outputs.items()])
     break

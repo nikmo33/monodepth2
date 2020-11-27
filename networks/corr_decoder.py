@@ -33,19 +33,9 @@ class CorrDecoder(nn.Module):
         
         nd = (2*max_displacement+1)**2
         dd = np.cumsum([128,128,96,64,32])
-        
+
         
         od = nd
-        self.conv5_0 = conv(od,      128, kernel_size=3, stride=1)
-        self.conv5_1 = conv(od+dd[0],128, kernel_size=3, stride=1)
-        self.conv5_2 = conv(od+dd[1],96,  kernel_size=3, stride=1)
-        self.conv5_3 = conv(od+dd[2],64,  kernel_size=3, stride=1)
-        self.conv5_4 = conv(od+dd[3],32,  kernel_size=3, stride=1)
-        self.predict_pose5 = predict_pose(od+dd[4]) 
-        self.deconv5 = deconv(6, 6, kernel_size=4, stride=2, padding=1) 
-        self.upfeat5 = deconv(od+dd[4], 6, kernel_size=4, stride=2, padding=1) 
-        
-        od = nd+num_decoder_channels[3]+12
         self.conv4_0 = conv(od,      128, kernel_size=3, stride=1)
         self.conv4_1 = conv(od+dd[0],128, kernel_size=3, stride=1)
         self.conv4_2 = conv(od+dd[1],96,  kernel_size=3, stride=1)
@@ -91,32 +81,19 @@ class CorrDecoder(nn.Module):
 
 
     def forward(self, all_features, all_outputs, intrinsics):
+        self.outputs = {}
+        c11, c12, c13, c14 = [feat[0] for feat in all_features]
+        c21, c22, c23, c24 = [feat[1] for feat in all_features]
 
-        c11, c12, c13, c14, c15 = [feat[0] for feat in all_features]
-        c21, c22, c23, c24, c25 = [feat[1] for feat in all_features]
-
-        d12, d13, d14, d15 = [output[0] for output in all_outputs]
-        d22, d23, d24, d25 = [output[1] for output in all_outputs]
+        d11, d12, d12, d12 = [output[0] for output in all_outputs]
+        d21, d22, d22, d22 = [output[1] for output in all_outputs]
 
         i11, i12, i13, i14 = intrinsics
 
-        corr5 = self.corr(c15, c25) 
-        corr5 = self.leakyRELU(corr5)
-        x = torch.cat((self.conv5_0(corr5), corr5),1)
-        x = torch.cat((self.conv5_1(x), x),1)
-        x = torch.cat((self.conv5_2(x), x),1)
-        x = torch.cat((self.conv5_3(x), x),1)
-        x = torch.cat((self.conv5_4(x), x),1)
-        pose5 = self.predict_pose5(x)
-        up_pose5 = self.deconv5(pose5)
-        up_feat5 = self.upfeat5(x)
-        
-        
-        warp4 = inverse_warp(c24, d15, up_pose5, i14)
-        corr4 = self.corr(c14, warp4)  
+        corr4 = self.corr(c14, c24)  
         corr4 = self.leakyRELU(corr4)
-        x = torch.cat((corr4, c14, up_pose5, up_feat5), 1)
-        x = torch.cat((self.conv4_0(x), x),1)
+        # x = torch.cat((corr4, c14, up_pose5, up_feat5), 1)
+        x = torch.cat((self.conv4_0(corr4), corr4),1)
         x = torch.cat((self.conv4_1(x), x),1)
         x = torch.cat((self.conv4_2(x), x),1)
         x = torch.cat((self.conv4_3(x), x),1)
@@ -126,7 +103,7 @@ class CorrDecoder(nn.Module):
         up_feat4 = self.upfeat4(x)
 
 
-        warp3 = inverse_warp(c23, d14, up_pose4, i13)
+        warp3 = inverse_warp(c23, d13, up_pose4, i13)
         corr3 = self.corr(c13, warp3) 
         corr3 = self.leakyRELU(corr3)
         
@@ -142,7 +119,7 @@ class CorrDecoder(nn.Module):
         up_feat3 = self.upfeat3(x)
 
 
-        warp2 = inverse_warp(c22, d13, up_pose3, i12) 
+        warp2 = inverse_warp(c22, d12, up_pose3, i12) 
         corr2 = self.corr(c12, warp2)
         corr2 = self.leakyRELU(corr2)
         x = torch.cat((corr2, c12, up_pose3, up_feat3), 1)
@@ -155,7 +132,7 @@ class CorrDecoder(nn.Module):
         up_pose2 = self.deconv2(pose2)
         up_feat2 = self.upfeat2(x)
  
-        warp1 = inverse_warp(c21, d12, up_pose2, i11) 
+        warp1 = inverse_warp(c21, d11, up_pose2, i11) 
         corr1 = self.corr(c11, warp1)
         corr1 = self.leakyRELU(corr1)
         x = torch.cat((corr1, c11, up_pose2, up_feat2), 1)
@@ -165,9 +142,10 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv1_3(x), x),1)
         x = torch.cat((self.conv1_4(x), x),1)
         pose = self.predict_pose(x)
-        pose = self.deconv1(pose)
         
-        if self.training:
-            return pose, pose2, pose3, pose4, pose5, pose6
-        else:
-            return pose
+        return {
+            ("pose", 0): pose,
+            ("pose", 1): pose2,
+            ("pose", 2): pose3,
+            ("pose", 3): pose4,
+        }
