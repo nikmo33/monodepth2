@@ -26,15 +26,14 @@ def deconv(in_planes, out_planes, kernel_size=4, stride=2, padding=1):
     return nn.ConvTranspose2d(in_planes, out_planes, kernel_size, stride, padding, bias=True)
 
 class CorrDecoder(nn.Module):
-    def __init__(self, num_decoder_channels, max_displacement=4, lrelu_slope=0.01):
+    def __init__(self, num_decoder_channels, max_displacement=4, lrelu_slope=0.01, egomotion_scale_factor=0.01):
         super(CorrDecoder, self).__init__()
         self.corr    = SpatialCorrelationSampler(kernel_size=1, patch_size=max_displacement * 2 + 1, stride=1, padding=0, dilation_patch=1)
         self.leakyRELU = nn.LeakyReLU(0.1)
         
         nd = (2*max_displacement+1)**2
         dd = np.cumsum([128,128,96,64,32])
-
-        
+        self.egomotion_scale_factor = egomotion_scale_factor
         od = nd
         self.conv4_0 = conv(od,      128, kernel_size=3, stride=1)
         self.conv4_1 = conv(od+dd[0],128, kernel_size=3, stride=1)
@@ -85,10 +84,22 @@ class CorrDecoder(nn.Module):
         c11, c12, c13, c14 = [feat[0] for feat in all_features]
         c21, c22, c23, c24 = [feat[1] for feat in all_features]
 
-        d11, d12, d12, d12 = [output[0] for output in all_outputs]
-        d21, d22, d22, d22 = [output[1] for output in all_outputs]
+        d11, d12, d13, d14 = [output[0] for output in all_outputs]
+        d21, d22, d23, d24 = [output[1] for output in all_outputs]
 
         i11, i12, i13, i14 = intrinsics
+
+        depth_output = {
+            ("source_depth", 0): d11,
+            ("source_depth", 1): d12,
+            ("source_depth", 2): d13,
+            ("source_depth", 3): d14,
+            ("target_depth", 0): d21,
+            ("target_depth", 1): d22,
+            ("target_depth", 2): d23,
+            ("target_depth", 3): d24,
+            
+        }
 
         corr4 = self.corr(c14, c24)  
         corr4 = self.leakyRELU(corr4)
@@ -98,7 +109,7 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv4_2(x), x),1)
         x = torch.cat((self.conv4_3(x), x),1)
         x = torch.cat((self.conv4_4(x), x),1)
-        pose4 = self.predict_pose4(x)
+        pose4 = self.egomotion_scale_factor * self.predict_pose4(x)
         up_pose4 = self.deconv4(pose4)
         up_feat4 = self.upfeat4(x)
 
@@ -114,7 +125,7 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv3_2(x), x),1)
         x = torch.cat((self.conv3_3(x), x),1)
         x = torch.cat((self.conv3_4(x), x),1)
-        pose3 = self.predict_pose3(x)
+        pose3 = self.egomotion_scale_factor * self.predict_pose3(x)
         up_pose3 = self.deconv3(pose3)
         up_feat3 = self.upfeat3(x)
 
@@ -128,7 +139,7 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv2_2(x), x),1)
         x = torch.cat((self.conv2_3(x), x),1)
         x = torch.cat((self.conv2_4(x), x),1)
-        pose2 = self.predict_pose2(x)
+        pose2 = self.egomotion_scale_factor * self.predict_pose2(x)
         up_pose2 = self.deconv2(pose2)
         up_feat2 = self.upfeat2(x)
  
@@ -141,11 +152,11 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv1_2(x), x),1)
         x = torch.cat((self.conv1_3(x), x),1)
         x = torch.cat((self.conv1_4(x), x),1)
-        pose = self.predict_pose(x)
+        pose = self.egomotion_scale_factor * self.predict_pose(x)
         
         return {
-            ("pose", 0): pose,
-            ("pose", 1): pose2,
-            ("pose", 2): pose3,
-            ("pose", 3): pose4,
+            ("forward_pose", 0): pose,
+            ("forward_pose", 1): pose2,
+            ("forward_pose", 2): pose3,
+            ("forward_pose", 3): pose4,
         }

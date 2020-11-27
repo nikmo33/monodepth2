@@ -24,7 +24,7 @@ from layers import *
 import datasets
 import networks
 from IPython import embed
-
+from dense_reprojection import *
 
 class Trainer:
     def __init__(self, options):
@@ -42,7 +42,7 @@ class Trainer:
 
         self.num_scales = len(self.opt.scales)
         self.num_input_frames = len(self.opt.frame_ids)
-        self.num_pose_frames = 2 if self.opt.pose_model_input == "pairs" else self.num_input_frames
+        self.num_pose_frames = 2
 
         assert self.opt.frame_ids[0] == 0, "frame_ids must start with 0"
 
@@ -59,7 +59,7 @@ class Trainer:
         self.models["depth"].to(self.device)
         self.parameters_to_train += list(self.models["depth"].parameters())
 
-        self.models["pose"] = networks.CorrDecoder(self.models["depth"].num_ch_dec, max_displacement=4)
+        self.models["pose"] = networks.SimplePoseDecoder(self.models["depth"].num_ch_dec)
         self.models["pose"].to(self.device)
         self.parameters_to_train += list(self.models["pose"].parameters())
 
@@ -105,22 +105,6 @@ class Trainer:
         self.writers = {}
         for mode in ["train", "val"]:
             self.writers[mode] = SummaryWriter(os.path.join(self.log_path, mode))
-
-        if not self.opt.no_ssim:
-            self.ssim = SSIM()
-            self.ssim.to(self.device)
-
-        self.backproject_depth = {}
-        self.project_3d = {}
-        for scale in self.opt.scales:
-            h = self.opt.height // (2 ** scale)
-            w = self.opt.width // (2 ** scale)
-
-            self.backproject_depth[scale] = BackprojectDepth(self.opt.batch_size, h, w)
-            self.backproject_depth[scale].to(self.device)
-
-            self.project_3d[scale] = Project3D(self.opt.batch_size, h, w)
-            self.project_3d[scale].to(self.device)
 
         self.depth_metric_names = [
             "de/abs_rel", "de/sq_rel", "de/rms", "de/log_rms", "da/a1", "da/a2", "da/a3"]
@@ -200,53 +184,16 @@ class Trainer:
         all_color_aug = torch.cat([inputs[("color_aug", i, 0)] for i in self.opt.frame_ids])
         all_features = self.models["encoder"](all_color_aug)
         outputs, decoder_features = self.models["depth"](all_features)
-        all_features = [torch.split(f, self.opt.batch_size) for f in decoder_features]
-        all_outputs = [torch.split(f, self.opt.batch_size) for f in outputs]
-
-        features = {}
-        outputs = {}
-        for i, k in enumerate(self.opt.frame_ids):
-            features[k] = [f[i] for f in decoder_features]
-            outputs[k] = [f[i] for f in outputs]
-
-        outputs.update(self.predict_poses(inputs, features, outputs))
-
-        self.generate_images_pred(inputs, outputs)
-        losses = self.compute_losses(inputs, outputs)
-
-        return outputs, losses
-
-    def predict_poses(self, inputs, features, outputs):
-        """Predict poses between input frames for monocular sequences.
-        """
-        outputs = {}
+        all_features = [torch.split(decoder_features[('features', scale)], 2) for scale in range(4)]
+        all_outputs = [torch.split(outputs[('depth', scale)], 2) for scale in range(4)]
         intrinsics = [inputs[("K", scale)] for scale in range(4)]
-        inv_intrinsics =  [inputs[("inv_K", scale)] for scale in range(4)]
-        pose_feats = {f_i: features[f_i] for f_i in self.opt.frame_ids}
-        depth_outputs = {f_i: outputs['disp']}
-        for f_i in self.opt.frame_ids[1:]:
-            if f_i != "s":
-                # To maintain ordering we always pass frames in temporal order
-                if f_i < 0:
-                    pose_inputs = [pose_feats[f_i], pose_feats[0]]
-                    depth_outputs = []
-                else:
-                    pose_inputs = [pose_feats[0], pose_feats[f_i]]
+        inv_intrinsics = [inputs[("inv_K", scale)] for scale in range(4)]
+        final_outputs = self.models["pose"](all_features, all_outputs, intrinsics)
 
-                if self.opt.pose_model_type == "separate_resnet":
-                    pose_inputs = [self.models["pose_decoder"](pose_inputs, )]
-                elif self.opt.pose_model_type == "posecnn":
-                    pose_inputs = torch.cat(pose_inputs, 1)
+        losses = self.compute_loss(inputs, final_outputs)
+        final_loss = self.reduce_loss(losses)
 
-                axisangle, translation = self.models["pose"](pose_inputs)
-                outputs[("axisangle", 0, f_i)] = axisangle
-                outputs[("translation", 0, f_i)] = translation
-
-                # Invert the matrix if the frame id is negative
-                outputs[("cam_T_cam", 0, f_i)] = transformation_from_parameters(
-                    axisangle[:, 0], translation[:, 0], invert=(f_i < 0))
-
-        return outputs
+        return final_outputs, final_loss
 
     def val(self):
         """Validate the model on a single minibatch
@@ -269,162 +216,61 @@ class Trainer:
 
         self.set_train()
 
-    def generate_images_pred(self, inputs, outputs):
+    def reduce_loss(self, losses):
+        final_loss = 0
+        for scale, scale_weight in enumerate(self.opt.scale_weights):
+            final_loss += scale_weight * losses[f'scale{scale}']
+        return {'loss': final_loss}
+
+    def compute_loss(self, inputs, model_outputs):
         """Generate the warped (reprojected) color images for a minibatch.
         Generated images are saved into the `outputs` dictionary.
         """
+        loss = {}
         for scale in self.opt.scales:
-            disp = outputs[("disp", scale)]
+            im0_depth = model_outputs[("depth", 0, scale)]
+            im1_depth = model_outputs[("depth", 1, scale)]
+            forward_pose = model_outputs[("forward_pose", scale)]
+            backward_pose = model_outputs[("backward_pose", scale)]
             if self.opt.v1_multiscale:
                 source_scale = scale
             else:
-                disp = F.interpolate(
-                    disp, [self.opt.height, self.opt.width], mode="bilinear", align_corners=False)
+                im0_depth = F.interpolate(
+                    im0_depth, [self.opt.height, self.opt.width], mode="bilinear", align_corners=False)
+                im1_depth = F.interpolate(
+                    im1_depth, [self.opt.height, self.opt.width], mode="bilinear", align_corners=False)
+                forward_pose =  F.interpolate(
+                    forward_pose, [self.opt.height, self.opt.width], mode="bilinear", align_corners=False)
+                backward_pose =  F.interpolate(
+                    backward_pose, [self.opt.height, self.opt.width], mode="bilinear", align_corners=False)
                 source_scale = 0
 
-            _, depth = disp_to_depth(disp, self.opt.min_depth, self.opt.max_depth)
+            im0 = inputs[('color', 0, source_scale)]
+            im1 = inputs[('color', 1, source_scale)]
+            intrinsics = inputs[('K', source_scale)][:, :3, :3]
+            forward_flow = compute_rigid_flow(im0_depth, forward_pose, intrinsics)
+            backward_flow = compute_rigid_flow(im1_depth, backward_pose, intrinsics)
 
-            outputs[("depth", 0, scale)] = depth
+            backward_flow_from_forward_flow = flow_inverse_warp(forward_flow, backward_flow)
+            forward_flow_from_backward_flow = flow_inverse_warp(backward_flow, forward_flow)
+            forward_flow_mask = compute_flow_mask(forward_flow, forward_flow_from_backward_flow)
+            backward_flow_mask = compute_flow_mask(backward_flow, backward_flow_from_forward_flow)
 
-            for i, frame_id in enumerate(self.opt.frame_ids[1:]):
-
-                if frame_id == "s":
-                    T = inputs["stereo_T"]
-                else:
-                    T = outputs[("cam_T_cam", 0, frame_id)]
-
-                # from the authors of https://arxiv.org/abs/1712.00175
-                if self.opt.pose_model_type == "posecnn":
-
-                    axisangle = outputs[("axisangle", 0, frame_id)]
-                    translation = outputs[("translation", 0, frame_id)]
-
-                    inv_depth = 1 / depth
-                    mean_inv_depth = inv_depth.mean(3, True).mean(2, True)
-
-                    T = transformation_from_parameters(
-                        axisangle[:, 0], translation[:, 0] * mean_inv_depth[:, 0], frame_id < 0)
-
-                cam_points = self.backproject_depth[source_scale](
-                    depth, inputs[("inv_K", source_scale)])
-                pix_coords = self.project_3d[source_scale](
-                    cam_points, inputs[("K", source_scale)], T)
-
-                outputs[("sample", frame_id, scale)] = pix_coords
-
-                outputs[("color", frame_id, scale)] = F.grid_sample(
-                    inputs[("color", frame_id, source_scale)],
-                    outputs[("sample", frame_id, scale)],
-                    padding_mode="border")
-
-                if not self.opt.disable_automasking:
-                    outputs[("color_identity", frame_id, scale)] = \
-                        inputs[("color", frame_id, source_scale)]
-
-    def compute_reprojection_loss(self, pred, target):
-        """Computes reprojection loss between a batch of predicted and target images
-        """
-        abs_diff = torch.abs(target - pred)
-        l1_loss = abs_diff.mean(1, True)
-
-        if self.opt.no_ssim:
-            reprojection_loss = l1_loss
-        else:
-            ssim_loss = self.ssim(pred, target).mean(1, True)
-            reprojection_loss = 0.85 * ssim_loss + 0.15 * l1_loss
-
-        return reprojection_loss
-
-    def compute_losses(self, inputs, outputs):
-        """Compute the reprojection and smoothness losses for a minibatch
-        """
-        losses = {}
-        total_loss = 0
-
-        for scale in self.opt.scales:
-            loss = 0
-            reprojection_losses = []
-
-            if self.opt.v1_multiscale:
-                source_scale = scale
-            else:
-                source_scale = 0
-
-            disp = outputs[("disp", scale)]
-            color = inputs[("color", 0, scale)]
-            target = inputs[("color", 0, source_scale)]
-
-            for frame_id in self.opt.frame_ids[1:]:
-                pred = outputs[("color", frame_id, scale)]
-                reprojection_losses.append(self.compute_reprojection_loss(pred, target))
-
-            reprojection_losses = torch.cat(reprojection_losses, 1)
-
-            if not self.opt.disable_automasking:
-                identity_reprojection_losses = []
-                for frame_id in self.opt.frame_ids[1:]:
-                    pred = inputs[("color", frame_id, source_scale)]
-                    identity_reprojection_losses.append(
-                        self.compute_reprojection_loss(pred, target))
-
-                identity_reprojection_losses = torch.cat(identity_reprojection_losses, 1)
-
-                if self.opt.avg_reprojection:
-                    identity_reprojection_loss = identity_reprojection_losses.mean(1, keepdim=True)
-                else:
-                    # save both images, and do min all at once below
-                    identity_reprojection_loss = identity_reprojection_losses
-
-            elif self.opt.predictive_mask:
-                # use the predicted mask
-                mask = outputs["predictive_mask"]["disp", scale]
-                if not self.opt.v1_multiscale:
-                    mask = F.interpolate(
-                        mask, [self.opt.height, self.opt.width],
-                        mode="bilinear", align_corners=False)
-
-                reprojection_losses *= mask
-
-                # add a loss pushing mask to 1 (using nn.BCELoss for stability)
-                weighting_loss = 0.2 * nn.BCELoss()(mask, torch.ones(mask.shape).cuda())
-                loss += weighting_loss.mean()
-
-            if self.opt.avg_reprojection:
-                reprojection_loss = reprojection_losses.mean(1, keepdim=True)
-            else:
-                reprojection_loss = reprojection_losses
-
-            if not self.opt.disable_automasking:
-                # add random numbers to break ties
-                identity_reprojection_loss += torch.randn(
-                    identity_reprojection_loss.shape).cuda() * 0.00001
-
-                combined = torch.cat((identity_reprojection_loss, reprojection_loss), dim=1)
-            else:
-                combined = reprojection_loss
-
-            if combined.shape[1] == 1:
-                to_optimise = combined
-            else:
-                to_optimise, idxs = torch.min(combined, dim=1)
-
-            if not self.opt.disable_automasking:
-                outputs["identity_selection/{}".format(scale)] = (
-                    idxs > identity_reprojection_loss.shape[1] - 1).float()
-
-            loss += to_optimise.mean()
-
-            mean_disp = disp.mean(2, True).mean(3, True)
-            norm_disp = disp / (mean_disp + 1e-7)
-            smooth_loss = get_smooth_loss(norm_disp, color)
-
-            loss += self.opt.disparity_smoothness * smooth_loss / (2 ** scale)
-            total_loss += loss
-            losses["loss/{}".format(scale)] = loss
-
-        total_loss /= self.num_scales
-        losses["loss"] = total_loss
-        return losses
+            forward_flow_mask, backward_flow_mask = compute_flow_mask(forward_flow, backward_flow)
+            im0_hat, im0_transformed_depth, im1_sampled_depth, valid_mask0 = inverse_warp(im1, im0_depth, forward_pose, intrinsics, im1_depth)
+            im1_hat, im1_transformed_depth, im0_sampled_depth, valid_mask1 = inverse_warp(im0, im1_depth, backward_pose, intrinsics, im0_depth)
+            im0_mask = (valid_mask0 & forward_flow_mask).float()
+            im1_mask = (valid_mask1 & backward_flow_mask).float()
+            im0_recon_loss = torch.sum(perception_similarity_loss(im0_hat, im0) * im0_mask) / torch.sum(im0_mask).clamp(min=1)
+            im1_recon_loss = torch.sum(perception_similarity_loss(im1_hat, im1) * im1_mask) / torch.sum(im1_mask).clamp(min=1)
+            im0_smooth_loss = edge_aware_smooth_loss(im0_depth, aux=im0)
+            im1_smooth_loss = edge_aware_smooth_loss(im1_depth, aux=im1)
+            model_outputs[("color", 0, scale)] = im0_hat
+            model_outputs[("color", 1, scale)] = im1_hat
+            model_outputs[("flow mask", 0, scale)] = forward_flow_mask
+            model_outputs[("flow_mask", 1, scale)] = backward_flow_mask
+            loss[f'scale{scale}'] = self.opt.photo_loss_weight * (im0_recon_loss + im1_recon_loss) + self.opt.smooth_loss_weight * (im0_smooth_loss + im1_smooth_loss)
+        return loss
 
     def compute_depth_losses(self, inputs, outputs, losses):
         """Compute depth metrics, to allow monitoring during training
@@ -481,26 +327,15 @@ class Trainer:
                     writer.add_image(
                         "color_{}_{}/{}".format(frame_id, s, j),
                         inputs[("color", frame_id, s)][j].data, self.step)
-                    if s == 0 and frame_id != 0:
+                    if s == 0:
                         writer.add_image(
                             "color_pred_{}_{}/{}".format(frame_id, s, j),
                             outputs[("color", frame_id, s)][j].data, self.step)
 
-                writer.add_image(
-                    "disp_{}/{}".format(s, j),
-                    normalize_image(outputs[("disp", s)][j]), self.step)
-
-                if self.opt.predictive_mask:
-                    for f_idx, frame_id in enumerate(self.opt.frame_ids[1:]):
-                        writer.add_image(
-                            "predictive_mask_{}_{}/{}".format(frame_id, s, j),
-                            outputs["predictive_mask"][("disp", s)][j, f_idx][None, ...],
-                            self.step)
-
-                elif not self.opt.disable_automasking:
                     writer.add_image(
-                        "automask_{}/{}".format(s, j),
-                        outputs["identity_selection/{}".format(s)][j][None, ...], self.step)
+                        "depth_{}_{}/{}".format(frame_id, s, j),
+                        normalize_image(outputs[("depth",frame_id, s)][j]), self.step)
+                
 
     def save_opts(self):
         """Save options to disk so we know what we ran this experiment with
