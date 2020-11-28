@@ -33,7 +33,7 @@ class SimplePoseDecoder(nn.Module):
         self.decoder = nn.ModuleList(list(self.convs.values()))
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, all_features, all_outputs, intrinsics):
+    def forward(self, all_features, all_outputs, intrinsics, intrinsics_inv):
         input_features = [torch.cat((im1_feat, im2_feat),dim=1) for (im1_feat, im2_feat) in all_features]
         d11, d12, d13, d14 = [output[0] for output in all_outputs]
         d21, d22, d23, d24 = [output[1] for output in all_outputs]

@@ -245,7 +245,7 @@ def flow_inverse_warp(source_flow, target_flow):
     )
     return reconsutructed_target_flow
 
-def compute_flow_mask(real_flow, reconstructed_flow, alpha1=0.1, alpha2=0.5):
+def compute_flow_mask(real_flow, reconstructed_flow, alpha1=0.01, alpha2=0.05):
     flow_difference = torch.norm(real_flow - reconstructed_flow, dim=1, keepdim=True)
     flow_mag = torch.norm(real_flow, dim=1, keepdim=True) + torch.norm(reconstructed_flow, dim=1, keepdim=True)
     occ_mask = flow_difference < alpha1*flow_mag + alpha2
