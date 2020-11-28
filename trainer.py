@@ -256,7 +256,6 @@ class Trainer:
             forward_flow_mask = compute_flow_mask(forward_flow, forward_flow_from_backward_flow)
             backward_flow_mask = compute_flow_mask(backward_flow, backward_flow_from_forward_flow)
 
-            forward_flow_mask, backward_flow_mask = compute_flow_mask(forward_flow, backward_flow)
             im0_hat, im0_transformed_depth, im1_sampled_depth, valid_mask0 = inverse_warp(im1, im0_depth, forward_pose, intrinsics, im1_depth)
             im1_hat, im1_transformed_depth, im0_sampled_depth, valid_mask1 = inverse_warp(im0, im1_depth, backward_pose, intrinsics, im0_depth)
             im0_mask = (valid_mask0 & forward_flow_mask).float()
