@@ -51,7 +51,7 @@ def flow_to_image(flow: np.ndarray, autoscale: bool = True) -> np.ndarray:
 
 
 def apply_colour_map(
-    image: np.ndarray, cmap: matplotlib.colors.LinearSegmentedColormap = DEFAULT_COLORMAP, autoscale: bool = False
+    image: np.ndarray, cmap: matplotlib.colors.LinearSegmentedColormap = DEFAULT_COLORMAP, autoscale: bool = True
 ) -> np.ndarray:
     """
     Applies a colour map to the given 1 or 2 channel numpy image. if 2 channel, must be 2xHxW.
