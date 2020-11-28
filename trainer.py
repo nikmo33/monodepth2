@@ -268,6 +268,8 @@ class Trainer:
             model_outputs[("color", 1, scale)] = im1_hat
             model_outputs[("flow_mask", 0, scale)] = forward_flow_mask
             model_outputs[("flow_mask", 1, scale)] = backward_flow_mask
+            model_outputs[("flow", 0, scale)] = forward_flow
+            model_outputs[("flow", 1, scale)] = backward_flow
             loss[f'scale{scale}'] = self.opt.photo_loss_weight * (im0_recon_loss + im1_recon_loss) + self.opt.smooth_loss_weight * (im0_smooth_loss + im1_smooth_loss)
         return loss
 
