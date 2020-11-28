@@ -334,14 +334,14 @@ class Trainer:
                             outputs[("color", frame_id, s)][j].data, self.step)
                     writer.add_image(
                         "flow_pred_{}_{}/{}".format(frame_id, s, j),
-                        flow_to_image(outputs[("flow", frame_id, s)][j].data), self.step)
+                        flow_to_image(outputs[("flow", frame_id, s)][j].detach().cpu().numpy()), self.step)
 
                     writer.add_image(
                         "mask_from_flow_{}_{}/{}".format(frame_id, s, j),
-                        heatmap_image(outputs[("flow_mask",frame_id, s)][j].float()), self.step)
+                        heatmap_image(outputs[("flow_mask",frame_id, s)][j].float().detach().cpu().numpy()), self.step)
                     writer.add_image(
                         "depth_{}_{}/{}".format(frame_id, s, j),
-                    heatmap_image(outputs[("depth",frame_id, s)][j]), self.step)
+                    heatmap_image(outputs[("depth",frame_id, s)][j].detach().cpu().numpy()), self.step)
                         
                 
 
