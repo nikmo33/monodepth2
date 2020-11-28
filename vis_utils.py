@@ -47,7 +47,7 @@ def flow_to_image(flow: np.ndarray, autoscale: bool = True) -> np.ndarray:
         v /= maxrad + np.finfo(float).eps
 
     # visualise flow with cmap
-    return np.uint8(compute_color(u, v) * 255)
+    return np_rgb_to_tensorboard_img(np.uint8(compute_color(u, v) * 255))
 
 
 def apply_colour_map(
@@ -94,7 +94,7 @@ def heatmap_image(
         raise ValueError(f"Expected a ndarray of shape [H, W] or [1, H, W] or [2, H, W], but got shape {image.shape}")
     heatmap_np = apply_colour_map(image, cmap=cmap, autoscale=autoscale)
     heatmap_np = np.uint8(heatmap_np * 255)
-    return heatmap_np
+    return np_rgb_to_tensorboard_img(heatmap_np)
 
 
 def compute_color(u: np.ndarray, v: np.ndarray) -> np.ndarray:
@@ -181,3 +181,8 @@ def make_color_wheel() -> np.ndarray:
     colorwheel[col : col + magenta_red, 0] = 255
 
     return colorwheel
+
+def np_rgb_to_tensorboard_img(img: np.ndarray) -> torch.Tensor:
+    tensor_img = _np_img_hwc_to_tensor_chw(img)
+    tensor_img = tensor_img.to(torch.float32) / 255.0  # [0, 255] -> [0.0, 1.0]
+    return tensor_img
