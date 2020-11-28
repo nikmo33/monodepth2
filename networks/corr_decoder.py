@@ -79,7 +79,7 @@ class CorrDecoder(nn.Module):
                     m.bias.data.zero_()
 
 
-    def forward(self, all_features, all_outputs, intrinsics):
+    def forward(self, all_features, all_outputs, intrinsics, intrinsics_inv):
         self.outputs = {}
         c11, c12, c13, c14 = [feat[0] for feat in all_features]
         c21, c22, c23, c24 = [feat[1] for feat in all_features]
@@ -88,6 +88,7 @@ class CorrDecoder(nn.Module):
         d21, d22, d23, d24 = [output[1] for output in all_outputs]
 
         i11, i12, i13, i14 = intrinsics
+        inv11, inv12, inv13, inv14 = intrinsics_inv
 
         depth_output = {
             ("source_depth", 0): d11,
@@ -114,7 +115,7 @@ class CorrDecoder(nn.Module):
         up_feat4 = self.upfeat4(x)
 
 
-        warp3 = inverse_warp(c23, d13, up_pose4, i13)
+        warp3 = inverse_warp(c23, d13, up_pose4, i13, inv13)
         corr3 = self.corr(c13, warp3) 
         corr3 = self.leakyRELU(corr3)
         
@@ -130,7 +131,7 @@ class CorrDecoder(nn.Module):
         up_feat3 = self.upfeat3(x)
 
 
-        warp2 = inverse_warp(c22, d12, up_pose3, i12) 
+        warp2 = inverse_warp(c22, d12, up_pose3, i12, inv12) 
         corr2 = self.corr(c12, warp2)
         corr2 = self.leakyRELU(corr2)
         x = torch.cat((corr2, c12, up_pose3, up_feat3), 1)
@@ -143,7 +144,7 @@ class CorrDecoder(nn.Module):
         up_pose2 = self.deconv2(pose2)
         up_feat2 = self.upfeat2(x)
  
-        warp1 = inverse_warp(c21, d11, up_pose2, i11) 
+        warp1 = inverse_warp(c21, d11, up_pose2, i11, inv11) 
         corr1 = self.corr(c11, warp1)
         corr1 = self.leakyRELU(corr1)
         x = torch.cat((corr1, c11, up_pose2, up_feat2), 1)

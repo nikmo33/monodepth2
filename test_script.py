@@ -181,8 +181,9 @@ def compute_loss(inputs, model_outputs):
         im0 = inputs[('color', 0, source_scale)]
         im1 = inputs[('color', 1, source_scale)]
         intrinsics = inputs[('K', source_scale)][:, :3, :3]
-        forward_flow = compute_rigid_flow(im0_depth, forward_pose, intrinsics)
-        backward_flow = compute_rigid_flow(im1_depth, backward_pose, intrinsics)
+        intrinsics_inv = inputs[("inv_K", source_scale)][:, :3, :3]
+        forward_flow = compute_rigid_flow(im0_depth, forward_pose, intrinsics, intrinsics_inv)
+        backward_flow = compute_rigid_flow(im1_depth, backward_pose, intrinsics, intrinsics_inv)
 
         backward_flow_from_forward_flow = flow_inverse_warp(forward_flow, backward_flow)
         forward_flow_from_backward_flow = flow_inverse_warp(backward_flow, forward_flow)
@@ -190,8 +191,8 @@ def compute_loss(inputs, model_outputs):
         backward_flow_mask = compute_flow_mask(backward_flow, backward_flow_from_forward_flow)
 
         forward_flow_mask, backward_flow_mask = compute_flow_mask(forward_flow, backward_flow)
-        im0_hat, im0_transformed_depth, im1_sampled_depth, valid_mask0 = inverse_warp(im1, im0_depth, forward_pose, intrinsics, im1_depth)
-        im1_hat, im1_transformed_depth, im0_sampled_depth, valid_mask1 = inverse_warp(im0, im1_depth, backward_pose, intrinsics, im0_depth)
+        im0_hat, im0_transformed_depth, im1_sampled_depth, valid_mask0 = inverse_warp(im1, im0_depth, forward_pose, intrinsics, intrinsics_inv, im1_depth)
+        im1_hat, im1_transformed_depth, im0_sampled_depth, valid_mask1 = inverse_warp(im0, im1_depth, backward_pose, intrinsics, intrinsics_inv, im0_depth)
         im0_mask = (valid_mask0 & forward_flow_mask).float()
         im1_mask = (valid_mask1 & backward_flow_mask).float()
         im0_recon_loss = torch.sum(perception_similarity_loss(im0_hat, im0) * im0_mask) / torch.sum(im0_mask).clamp(min=1)

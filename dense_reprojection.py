@@ -4,9 +4,8 @@ import torch
 POSE_VEC_TRANSLATION_INDICES = slice(0, 3)
 POSE_VEC_ROTATION_INDICES = slice(3, 6)
 
-def project_points(inverse_depth, pose, intrinsics):
+def project_points(inverse_depth, pose, intrinsics, intrinsics_inv):
     b, _, h, w = inverse_depth.shape
-    intrinsics_inv = torch.inverse(intrinsics.cpu()).to(intrinsics.device)
     cam_coords = inverse_depth_to_camera_coords(inverse_depth, intrinsics_inv)
     cam_coords = cam_coords.permute(0, 2, 3, 1).reshape(-1, 3, 1)
     pose = pose.permute(0, 2, 3, 1).reshape(-1, 6)
@@ -115,8 +114,8 @@ def pose_vec2mat(vec: torch.Tensor):
     return transform_mat
 
 
-def inverse_warp(source_image, target_inverse_depth, pose, intrinsics, source_inverse_depth = None, padding_mode: str = "border"):
-    src_pixel_coords, computed_depth = project_points(target_inverse_depth, pose, intrinsics)
+def inverse_warp(source_image, target_inverse_depth, pose, intrinsics, , intrinsics_inv, source_inverse_depth = None, padding_mode: str = "border"):
+    src_pixel_coords, computed_depth = project_points(target_inverse_depth, pose, intrinsics, intrinsics_inv)
     
 
     projected_img = torch.nn.functional.grid_sample(
@@ -131,11 +130,11 @@ def inverse_warp(source_image, target_inverse_depth, pose, intrinsics, source_in
     return projected_img, computed_depth, projected_depth, valid_mask
 
 
-def compute_rigid_flow(inverse_depth, pose, intrinsics, normalised_coords=True) -> torch.Tensor:
+def compute_rigid_flow(inverse_depth, pose, intrinsics, intrinsics_inv, normalised_coords=True) -> torch.Tensor:
     h, w = inverse_depth.shape[-2:]
     normalised_image_grid = _get_normalised_image_grid(h, w).to(inverse_depth.device)
     scale = torch.tensor([w / 2.0, h / 2.0], dtype=torch.float32).view(1, 1, 1, 2).to(inverse_depth.device)
-    normalised_pixel_coords, _ = project_points(inverse_depth, pose, intrinsics)
+    normalised_pixel_coords, _ = project_points(inverse_depth, pose, intrinsics, intrinsics_inv)
     if normalised_coords:
         scale = 1
     rigid_flow = scale * (normalised_pixel_coords - normalised_image_grid)

@@ -187,7 +187,7 @@ class Trainer:
         all_outputs = [torch.split(outputs[('depth', scale)], self.opt.batch_size) for scale in range(len(self.opt.scales))]
         intrinsics = [inputs[("K", scale)] for scale in range(len(self.opt.scales))]
         inv_intrinsics = [inputs[("inv_K", scale)] for scale in range(len(self.opt.scales))]
-        final_outputs = self.models["pose"](all_features, all_outputs, intrinsics)
+        final_outputs = self.models["pose"](all_features, all_outputs, intrinsics, inv_intrinsics)
 
         losses = self.compute_loss(inputs, final_outputs)
         final_loss = self.reduce_loss(losses)
@@ -247,8 +247,8 @@ class Trainer:
             im0 = inputs[('color', 0, source_scale)]
             im1 = inputs[('color', 1, source_scale)]
             intrinsics = inputs[('K', source_scale)][:, :3, :3]
-            forward_flow = compute_rigid_flow(im0_depth, forward_pose, intrinsics)
-            backward_flow = compute_rigid_flow(im1_depth, backward_pose, intrinsics)
+            forward_flow = compute_rigid_flow(im0_depth, forward_pose, intrinsics, intrinsics_inv)
+            backward_flow = compute_rigid_flow(im1_depth, backward_pose, intrinsics, intrinsics_inv)
 
             backward_flow_from_forward_flow = flow_inverse_warp(forward_flow, backward_flow)
             forward_flow_from_backward_flow = flow_inverse_warp(backward_flow, forward_flow)
