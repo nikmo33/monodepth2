@@ -187,7 +187,7 @@ class Trainer:
         all_features = [torch.split(decoder_features[('features', scale)], self.opt.batch_size) for scale in range(len(self.opt.scales))]
         all_outputs = [torch.split(outputs[('depth', scale)], self.opt.batch_size) for scale in range(len(self.opt.scales))]
         intrinsics = [inputs[("K", scale)] for scale in range(len(self.opt.scales))]
-        inv_intrinsics = [inputs[("inv_K", scale)] for range(len(self.opt.scales))]
+        inv_intrinsics = [inputs[("inv_K", scale)] for scale in range(len(self.opt.scales))]
         final_outputs = self.models["pose"](all_features, all_outputs, intrinsics)
 
         losses = self.compute_loss(inputs, final_outputs)
