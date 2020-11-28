@@ -186,3 +186,19 @@ def np_rgb_to_tensorboard_img(img: np.ndarray) -> torch.Tensor:
     tensor_img = _np_img_hwc_to_tensor_chw(img)
     tensor_img = tensor_img.to(torch.float32) / 255.0  # [0, 255] -> [0.0, 1.0]
     return tensor_img
+
+def _np_img_hwc_to_tensor_chw(img: np.ndarray) -> torch.Tensor:
+    assert img.dtype == np.uint8
+    img = _np_img_hwc_to_chw(img)  # HWC -> CHW
+    torch_img = torch.from_numpy(img)
+    return torch_img
+
+def _np_img_hwc_to_chw(img: np.ndarray) -> np.ndarray:
+    if img.ndim == 3:
+        assert img.shape[2] in [1, 3]
+        img = np.transpose(img, (2, 0, 1))
+    elif img.ndim == 2:
+        img = np.expand_dims(img, axis=0)
+    else:
+        raise ValueError(f"Expected array with 2 or 3 dimensions, but got array with shape {img.shape}")
+    return img
