@@ -332,6 +332,9 @@ class Trainer:
                         writer.add_image(
                             "color_pred_{}_{}/{}".format(frame_id, s, j),
                             outputs[("color", frame_id, s)][j].data, self.step)
+                    print(outputs[("flow", frame_id, s)][j].shape)
+                    print(outputs[("flow_mask",frame_id, s)][j].shape)
+                    print(outputs[("depth",frame_id, s)][j].shape)
                     writer.add_image(
                         "flow_pred_{}_{}/{}".format(frame_id, s, j),
                         flow_to_image(outputs[("flow", frame_id, s)][j].detach().cpu().numpy()), self.step)
