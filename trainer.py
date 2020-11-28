@@ -332,19 +332,16 @@ class Trainer:
                         writer.add_image(
                             "color_pred_{}_{}/{}".format(frame_id, s, j),
                             outputs[("color", frame_id, s)][j].data, self.step)
-                    print(outputs[("flow", frame_id, s)][j].shape)
-                    print(outputs[("flow_mask",frame_id, s)][j].shape)
-                    print(outputs[("depth",frame_id, s)][j].shape)
                     # writer.add_image(
                     #     "flow_pred_{}_{}/{}".format(frame_id, s, j),
                     #     flow_to_image(outputs[("flow", frame_id, s)][j].detach().cpu().numpy()), self.step)
 
                     writer.add_image(
                         "mask_from_flow_{}_{}/{}".format(frame_id, s, j),
-                        heatmap_image(outputs[("flow_mask",frame_id, s)][j].float().detach().cpu().numpy()).data, self.step)
+                        heatmap_image(outputs[("flow_mask",frame_id, s)][j].data), self.step)
                     writer.add_image(
                         "depth_{}_{}/{}".format(frame_id, s, j),
-                    heatmap_image(outputs[("depth",frame_id, s)][j].detach().cpu().numpy()).data, self.step)
+                    heatmap_image(outputs[("depth",frame_id, s)][j].data), self.step)
                         
                 
 

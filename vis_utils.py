@@ -36,7 +36,7 @@ def flow_to_image(flow: np.ndarray, autoscale: bool = True) -> np.ndarray:
     """
     u = flow[0, :, :]
     v = flow[1, :, :]
-
+    
     # Convert to polar coordinates
     rad = np.sqrt(u ** 2 + v ** 2)
     maxrad = np.max(rad)
@@ -47,8 +47,7 @@ def flow_to_image(flow: np.ndarray, autoscale: bool = True) -> np.ndarray:
         v /= maxrad + np.finfo(float).eps
 
     # visualise flow with cmap
-
-    return compute_color(u, v)
+    return np.uint8(compute_color(u, v) * 255)
 
 
 def apply_colour_map(
