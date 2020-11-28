@@ -25,7 +25,7 @@ import datasets
 import networks
 from IPython import embed
 from dense_reprojection import *
-
+from vis_utils import *
 class Trainer:
     def __init__(self, options):
         self.opt = options
@@ -267,7 +267,7 @@ class Trainer:
             im1_smooth_loss = edge_aware_smooth_loss(im1_depth, aux=im1)
             model_outputs[("color", 0, scale)] = im0_hat
             model_outputs[("color", 1, scale)] = im1_hat
-            model_outputs[("flow mask", 0, scale)] = forward_flow_mask
+            model_outputs[("flow_mask", 0, scale)] = forward_flow_mask
             model_outputs[("flow_mask", 1, scale)] = backward_flow_mask
             loss[f'scale{scale}'] = self.opt.photo_loss_weight * (im0_recon_loss + im1_recon_loss) + self.opt.smooth_loss_weight * (im0_smooth_loss + im1_smooth_loss)
         return loss
@@ -331,10 +331,17 @@ class Trainer:
                         writer.add_image(
                             "color_pred_{}_{}/{}".format(frame_id, s, j),
                             outputs[("color", frame_id, s)][j].data, self.step)
+                    writer.add_image(
+                        "flow_pred_{}_{}/{}".format(frame_id, s, j),
+                        flow_to_image(outputs[("flow", frame_id, s)][j].data), self.step)
 
                     writer.add_image(
+                        "mask_from_flow_{}_{}/{}".format(frame_id, s, j),
+                        heatmap_image(outputs[("flow_mask",frame_id, s)][j].float()), self.step)
+                    writer.add_image(
                         "depth_{}_{}/{}".format(frame_id, s, j),
-                        normalize_image(outputs[("depth",frame_id, s)][j]), self.step)
+                    heatmap_image(outputs[("depth",frame_id, s)][j]), self.step)
+                        
                 
 
     def save_opts(self):
