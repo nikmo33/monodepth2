@@ -184,10 +184,10 @@ class Trainer:
         all_color_aug = torch.cat([inputs[("color_aug", i, 0)] for i in self.opt.frame_ids])
         all_features = self.models["encoder"](all_color_aug)
         outputs, decoder_features = self.models["depth"](all_features)
-        all_features = [torch.split(decoder_features[('features', scale)], 2) for scale in range(4)]
-        all_outputs = [torch.split(outputs[('depth', scale)], 2) for scale in range(4)]
-        intrinsics = [inputs[("K", scale)] for scale in range(4)]
-        inv_intrinsics = [inputs[("inv_K", scale)] for scale in range(4)]
+        all_features = [torch.split(decoder_features[('features', scale)], self.opt.batch_size) for scale in range(len(self.opt.scales))]
+        all_outputs = [torch.split(outputs[('depth', scale)], self.opt.batch_size) for scale in range(len(self.opt.scales))]
+        intrinsics = [inputs[("K", scale)] for scale in range(len(self.opt.scales))]
+        inv_intrinsics = [inputs[("inv_K", scale)] for range(len(self.opt.scales))]
         final_outputs = self.models["pose"](all_features, all_outputs, intrinsics)
 
         losses = self.compute_loss(inputs, final_outputs)
