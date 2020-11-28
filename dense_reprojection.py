@@ -114,7 +114,7 @@ def pose_vec2mat(vec: torch.Tensor):
     return transform_mat
 
 
-def inverse_warp(source_image, target_inverse_depth, pose, intrinsics, , intrinsics_inv, source_inverse_depth = None, padding_mode: str = "border"):
+def inverse_warp(source_image, target_inverse_depth, pose, intrinsics, intrinsics_inv, source_inverse_depth = None, padding_mode: str = "border"):
     src_pixel_coords, computed_depth = project_points(target_inverse_depth, pose, intrinsics, intrinsics_inv)
     
 
