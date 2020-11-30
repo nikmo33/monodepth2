@@ -39,7 +39,6 @@ streamlit==0.67.1
 folium==0.10.1
 ptvsd==4.3.2
 pydeck==0.3.1
-scikit-image==0.16.2
 pycocotools==2.0.2
 opencv-python==4.4.0.44
 runai==0.3.0
