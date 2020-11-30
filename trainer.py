@@ -58,7 +58,7 @@ class Trainer:
         self.models["depth"].to(self.device)
         self.parameters_to_train += list(self.models["depth"].parameters())
 
-        self.models["pose"] = networks.SimplePoseDecoder(self.models["depth"].num_ch_dec)
+        self.models["pose"] = networks.CorrDecoder(self.models["depth"].num_ch_dec)
         self.models["pose"].to(self.device)
         self.parameters_to_train += list(self.models["pose"].parameters())
 
