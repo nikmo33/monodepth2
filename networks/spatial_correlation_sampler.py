@@ -3,6 +3,9 @@ from torch import nn
 from torch import autograd
 from torch.nn.modules.utils import _pair
 
+from torch.utils.cpp_extension import load
+
+correlation_op = load(name='correlation_op', sources=['networks/correlation/src/correlation_sampler.cpp', 'networks/correlation/src/correlation_cuda_kernel.cu'])
 
 def spatial_correlation_sample(
     input1: torch.Tensor,
@@ -54,7 +57,7 @@ def spatial_correlation_sample(
 class SpatialCorrelationSamplerFunction(autograd.Function):
     def __init__(self):
         super().__init__()
-        load_cpp_library("libcppcorrelation.so")
+        torch.ops.load_library("libcppcorrelation.so")
 
     @staticmethod
     def forward(
@@ -81,7 +84,7 @@ class SpatialCorrelationSamplerFunction(autograd.Function):
         dilation_patchH, dilation_patchW = ctx.dilation_patch
         dH, dW = ctx.stride
 
-        output = torch.ops.wayve_ops.correlation_sample_forward(
+        output = correlation_op(
             input1, input2, kH, kW, patchH, patchW, padH, padW, dilation_patchH, dilation_patchW, dH, dW
         )
         return output
@@ -124,16 +127,36 @@ class SpatialCorrelationSampler(nn.Module):
         self.dilation_patch = dilation_patch
         self.keep_spatial_dims = keep_spatial_dims
         self.normalise = normalise
+        load_cpp_library("libcppcorrelation.so")
 
     def forward(self, input1: torch.Tensor, input2: torch.Tensor):
-        return spatial_correlation_sample(
-            input1,
-            input2,
-            self.kernel_size,
-            self.patch_size,
-            self.stride,
-            self.padding,
-            self.dilation_patch,
-            self.keep_spatial_dims,
-            self.normalise,
-        )
+        if self.training:
+            output = spatial_correlation_sample(
+                input1,
+                input2,
+                self.kernel_size,
+                self.patch_size,
+                self.stride,
+                self.padding,
+                self.dilation_patch,
+                self.keep_spatial_dims,
+                self.normalise,
+            )
+        else:
+            # in to support torch script, in inference mode we run without backward pass support
+            kH, kW = _pair(self.kernel_size)
+            patchH, patchW = _pair(self.patch_size)
+            padH, padW = _pair(self.padding)
+            dilation_patchH, dilation_patchW = _pair(self.dilation_patch)
+            dH, dW = _pair(self.stride)
+            output = torch.ops.wayve_ops.correlation_sample_forward(
+                input1, input2, kH, kW, patchH, patchW, padH, padW, dilation_patchH, dilation_patchW, dH, dW
+            )
+            if not self.keep_spatial_dims:
+                output_shape = output.shape
+                output = output.view(
+                    output_shape[0], output_shape[1] * output_shape[2], output_shape[3], output_shape[4]
+                )
+            if self.normalise:
+                return output / input1.size(1)
+        return output
