@@ -1,4 +1,4 @@
-FROM eu.gcr.io/wayve-cloud/training_base:0.2.5
+FROM dfea8771d926a524d885807dfc984a0029e863945aa1b697ce7f0152da66648d
 
 WORKDIR /app/nikhil
 

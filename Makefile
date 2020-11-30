@@ -3,3 +3,7 @@ build:
 
 publish: build
 	docker push monodepth2
+
+_build_python_image:
+	docker build -t python-3.6-nvidia-cuda -f Dockerfile .
+
