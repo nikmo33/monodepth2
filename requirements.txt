@@ -19,4 +19,4 @@ py3nvml==0.2.6
 moviepy==1.0.3
 pycocotools==2.0.2
 pyperformance==1.0.1
-ninja==1.10.2
+ninja==1.10.0.post2
