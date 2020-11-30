@@ -127,7 +127,7 @@ class SpatialCorrelationSampler(nn.Module):
         self.dilation_patch = dilation_patch
         self.keep_spatial_dims = keep_spatial_dims
         self.normalise = normalise
-        load_cpp_library("libcppcorrelation.so")
+        torch.ops.load_library("networks/correlation/libcppcorrelation.so")
 
     def forward(self, input1: torch.Tensor, input2: torch.Tensor):
         if self.training:
