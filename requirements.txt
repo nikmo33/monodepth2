@@ -8,7 +8,6 @@ https://wayve-data.s3.eu-west-2.amazonaws.com/public/installers/torchvision-0.5.
 https://wayve-data.s3.eu-west-2.amazonaws.com/public/installers/torch-1.4.1-cp36-cp36m-linux_x86_64.7.6.5.32-1%2Bcuda10.0.intel-mkl-2020.1-102.whl#egg=torch
 vtk==8.1.*
 notebook==6.1.5
-cffi==1.11.*
 imageio==2.4.*
 imageio-ffmpeg==0.4.2
 ipython==7.1.1
@@ -17,7 +16,7 @@ pypng==0.0.18
 ipdb==0.12
 mkl==2019.0
 py3nvml==0.2.6
-parameterized==0.7.0
 moviepy==1.0.3
 pycocotools==2.0.2
 pyperformance==1.0.1
+ninja==1.10.2

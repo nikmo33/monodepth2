@@ -2,6 +2,7 @@ FROM eu.gcr.io/wayve-cloud/training_base:0.2.5
 
 WORKDIR /app/nikhil/
 
+
 # pull the monodepth
 RUN git clone https://github.com/nikmo33/monodepth2.git
 RUN apt update && apt install -y \
@@ -13,6 +14,9 @@ RUN apt update && apt install -y \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf ~/.cache/pip
+
+RUN git clone https://github.com/facebookresearch/detectron2.git
+RUN pip3 install -e detectron2
 
 WORKDIR /app/nikhil/monodepth2
 
