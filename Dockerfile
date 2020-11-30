@@ -15,9 +15,11 @@ RUN apt update && apt install -y \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf ~/.cache/pip
 
-RUN git clone https://github.com/facebookresearch/detectron2.git
-RUN pip3 install -e detectron2
-
 WORKDIR /app/nikhil/monodepth2
 
 RUN pip3 install -r requirements.txt
+
+WORKDIR /app/nikhil
+
+RUN git clone https://github.com/facebookresearch/detectron2.git
+RUN pip3 install -e detectron2
