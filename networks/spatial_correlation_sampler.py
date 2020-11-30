@@ -3,9 +3,9 @@ from torch import nn
 from torch import autograd
 from torch.nn.modules.utils import _pair
 
-from torch.utils.cpp_extension import load
+# from torch.utils.cpp_extension import load
 
-correlation_op = load(name='correlation_op', sources=['networks/correlation/src/correlation_sampler.cpp', 'networks/correlation/src/correlation_cuda_kernel.cu'])
+# correlation_op = load(name='correlation_op', sources=['networks/correlation/src/correlation_sampler.cpp', 'networks/correlation/src/correlation_cuda_kernel.cu'])
 
 def spatial_correlation_sample(
     input1: torch.Tensor,
@@ -57,7 +57,7 @@ def spatial_correlation_sample(
 class SpatialCorrelationSamplerFunction(autograd.Function):
     def __init__(self):
         super().__init__()
-        torch.ops.load_library("libcppcorrelation.so")
+        torch.ops.load_library("networks/correlation/libcppcorrelation.so")
 
     @staticmethod
     def forward(
