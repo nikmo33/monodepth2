@@ -16,7 +16,7 @@ RUN apt update && apt install -y \
     rm -rf ~/.cache/pip
 
 WORKDIR /app/nikhil/monodepth2
-
+RUN pip3 install pytorch-lightning
 RUN pip3 install -r requirements.txt
 
 WORKDIR /app/nikhil/monodepth2/correlation_package
