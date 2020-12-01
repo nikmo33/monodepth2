@@ -67,7 +67,7 @@ class MonodepthOptions:
                                  nargs="+",
                                  type=float,
                                  help="scales used in the loss",
-                                 default=[1.0, 1.0, 1.0, 1.0])
+                                 default=[1.0, 0.5, 0.25, 0.125])
         self.parser.add_argument("--photo_loss_weight",
                                  type=float,
                                  help="photo_loss_weight",
