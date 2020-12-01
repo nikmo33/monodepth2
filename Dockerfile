@@ -4,25 +4,19 @@ WORKDIR /app/nikhil/
 
 
 # pull the monodepth
-RUN git clone https://github.com/nikmo33/monodepth2.git
 RUN apt update && apt install -y \
     python3 \
-    python3-pip && \
-    pip3 install \
+    python3-pip
+RUN pip3 install \
         numpy \
-        pyyaml && \
-    apt-get clean && \
+        pyyaml
+RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf ~/.cache/pip
 
-WORKDIR /app/nikhil/monodepth2
 # RUN pip3 install pytorch-lightning
+COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
-WORKDIR /app/nikhil/monodepth2/correlation_package
 
-RUN rm -rf *_cuda.egg-info build dist __pycache__
-RUN python3 setup.py install --user
 
-# RUN git clone https://github.com/facebookresearch/detectron2.git
-# RUN pip3 install -e detectron2

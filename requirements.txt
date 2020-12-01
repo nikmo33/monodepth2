@@ -8,15 +8,11 @@ https://wayve-data.s3.eu-west-2.amazonaws.com/public/installers/torch-1.4.1-cp36
 scikit-image==0.16.2
 vtk==8.1.*
 notebook==6.1.5
-imageio==2.4.*
 imageio-ffmpeg==0.4.2
-ipython==7.1.1
 tensorboard==2.3.0
 pypng==0.0.18
 ipdb==0.12
-mkl==2019.0
 py3nvml==0.2.6
 moviepy==1.0.3
 pycocotools==2.0.2
 pyperformance==1.0.1
-ninja==1.10.0.post2
