@@ -3,8 +3,8 @@
 # `core/python_sources/core_requirements.txt` available to it
 #
 # Built using //3rdparty/pytorch/build.bash.
-# https://wayve-data.s3.eu-west-2.amazonaws.com/public/installers/torchvision-0.5.0-cp36-cp36m-linux_x86_64.torch1.4.1.libcudnn7.6.5%2Bcuda10.0.intel-mkl-2020.1-102.whl#egg=torchvision  #exclusive
-# https://wayve-data.s3.eu-west-2.amazonaws.com/public/installers/torch-1.4.1-cp36-cp36m-linux_x86_64.7.6.5.32-1%2Bcuda10.0.intel-mkl-2020.1-102.whl#egg=torch
+https://wayve-data.s3.eu-west-2.amazonaws.com/public/installers/torchvision-0.5.0-cp36-cp36m-linux_x86_64.torch1.4.1.libcudnn7.6.5%2Bcuda10.0.intel-mkl-2020.1-102.whl#egg=torchvision  #exclusive
+https://wayve-data.s3.eu-west-2.amazonaws.com/public/installers/torch-1.4.1-cp36-cp36m-linux_x86_64.7.6.5.32-1%2Bcuda10.0.intel-mkl-2020.1-102.whl#egg=torch
 scikit-image==0.16.2
 vtk==8.1.*
 notebook==6.1.5
