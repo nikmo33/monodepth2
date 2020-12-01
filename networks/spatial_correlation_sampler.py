@@ -84,7 +84,7 @@ class SpatialCorrelationSamplerFunction(autograd.Function):
         dilation_patchH, dilation_patchW = ctx.dilation_patch
         dH, dW = ctx.stride
 
-        output = correlation_op(
+        output = torch.ops.wayve_ops.correlation_sample_forward(
             input1, input2, kH, kW, patchH, patchW, padH, padW, dilation_patchH, dilation_patchW, dH, dW
         )
         return output
