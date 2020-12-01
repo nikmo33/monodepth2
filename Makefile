@@ -1,6 +1,9 @@
 build:
 	docker build -f Dockerfile -t monodepth2 . 
 
+build-no-cache:
+	docker build -f Dockerfile -t monodepth2 . --no-cache
+
 publish: build
 	docker push monodepth2
 
