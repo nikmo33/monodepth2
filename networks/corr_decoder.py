@@ -90,6 +90,20 @@ class CorrDecoder(nn.Module):
         d11, d12, d13, d14 = [output[source_index] for output in all_outputs]
         d21, d22, d23, d24 = [output[target_index] for output in all_outputs]
 
+        if not backward:
+            outputs = {
+            ("depth", 0, 0): d11,
+            ("depth", 0, 1): d12,
+            ("depth", 0, 2): d13,
+            ("depth", 0, 3): d14,
+            ("depth", 1, 0): d21,
+            ("depth", 1, 1): d22,
+            ("depth", 1, 2): d23,
+            ("depth", 1, 3): d24,
+            
+        }
+        else:
+            outputs = {}
         i11, i12, i13, i14 = [i[..., :3, :3] for i in intrinsics]
         inv11, inv12, inv13, inv14 =  [i[..., :3, :3] for i in intrinsics_inv]
         corr4 = self.corr(c14, c24)  
@@ -145,32 +159,20 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv1_4(x), x),1)
         pose = self.egomotion_scale_factor * self.predict_pose(x)
         prefix = "backward_" if backward_pose else "forward_"
-        return {
+        outputs.update({
             (prefix +"pose", 0): pose,
             (prefix +"pose", 1): pose2,
             (prefix +"pose", 2): pose3,
             (prefix +"pose", 3): pose4,
-        }
+        })
+        return outputs
     def forward(self, all_features, all_outputs, intrinsics, intrinsics_inv):
         self.outputs = {}
         
 
-        outputs = {
-            ("depth", 0, 0): d11,
-            ("depth", 0, 1): d12,
-            ("depth", 0, 2): d13,
-            ("depth", 0, 3): d14,
-            ("depth", 1, 0): d21,
-            ("depth", 1, 1): d22,
-            ("depth", 1, 2): d23,
-            ("depth", 1, 3): d24,
-            
-        }
-
         pose = self.compute_pose(all_features, all_outputs, intrinsics, intrinsics_inv)
-        outputs.update(pose)
         if self.compute_backward_pose:
             backward_pose = self.compute_pose(all_features, all_outputs, intrinsics, intrinsics_inv, backward=True)
-            outputs.update(backward_pose)
+            pose.update(backward_pose)
 
         return outptus
