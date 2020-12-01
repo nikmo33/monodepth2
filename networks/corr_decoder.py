@@ -65,9 +65,9 @@ class CorrDecoder(nn.Module):
         self.upfeat2 = deconv(od+dd[4], 6, kernel_size=4, stride=2, padding=1) 
         dd = np.cumsum([16,16,16,16,8])
         od = nd+num_decoder_channels[0]+12
-        self.conv1_0 = conv(od,      128, kernel_size=3, stride=1)
-        self.conv1_1 = conv(od+dd[0],64, kernel_size=3, stride=1)
-        self.conv1_2 = conv(od+dd[1],32,  kernel_size=3, stride=1)
+        self.conv1_0 = conv(od,      16, kernel_size=3, stride=1)
+        self.conv1_1 = conv(od+dd[0],16, kernel_size=3, stride=1)
+        self.conv1_2 = conv(od+dd[1],16,  kernel_size=3, stride=1)
         self.conv1_3 = conv(od+dd[2],16,  kernel_size=3, stride=1)
         self.conv1_4 = conv(od+dd[3],8,  kernel_size=3, stride=1)
         self.predict_pose = predict_pose(od+dd[4]) 
