@@ -15,6 +15,9 @@ RUN apt-get clean && \
     rm -rf ~/.cache/pip
 
 # RUN pip3 install pytorch-lightning
+COPY torch_requirements.txt torch_requirements.txt
+RUN pip3 install -r torch_requirements.txt
+
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
