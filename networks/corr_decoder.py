@@ -78,7 +78,7 @@ class CorrDecoder(nn.Module):
                 if m.bias is not None:
                     m.bias.data.zero_()
 
-    def compute_pose(all_features, all_outputs, intrinsics, intrinsics_inv, backward=False):
+    def compute_pose(self, all_features, all_outputs, intrinsics, intrinsics_inv, backward=False):
         source_index = 0
         target_index = 1
         if backward:
