@@ -32,44 +32,44 @@ class CorrDecoder(nn.Module):
         self.leakyRELU = nn.LeakyReLU(0.1)
         self.compute_backward_pose = True
         nd = (2*max_displacement+1)**2
-        dd = np.cumsum([128,128,96,64,32])
+        dd = np.cumsum([128,64,32,16,8])
         self.egomotion_scale_factor = egomotion_scale_factor
         od = nd
         self.conv4_0 = conv(od,      128, kernel_size=3, stride=1)
-        self.conv4_1 = conv(od+dd[0],128, kernel_size=3, stride=1)
-        self.conv4_2 = conv(od+dd[1],96,  kernel_size=3, stride=1)
-        self.conv4_3 = conv(od+dd[2],64,  kernel_size=3, stride=1)
-        self.conv4_4 = conv(od+dd[3],32,  kernel_size=3, stride=1)
+        self.conv4_1 = conv(od+dd[0],64, kernel_size=3, stride=1)
+        self.conv4_2 = conv(od+dd[1],32,  kernel_size=3, stride=1)
+        self.conv4_3 = conv(od+dd[2],16,  kernel_size=3, stride=1)
+        self.conv4_4 = conv(od+dd[3], 8,  kernel_size=3, stride=1)
         self.predict_pose4 = predict_pose(od+dd[4]) 
         self.deconv4 = deconv(6, 6, kernel_size=4, stride=2, padding=1) 
         self.upfeat4 = deconv(od+dd[4], 6, kernel_size=4, stride=2, padding=1) 
         
         od = nd+num_decoder_channels[2]+12
         self.conv3_0 = conv(od,      128, kernel_size=3, stride=1)
-        self.conv3_1 = conv(od+dd[0],128, kernel_size=3, stride=1)
-        self.conv3_2 = conv(od+dd[1],96,  kernel_size=3, stride=1)
-        self.conv3_3 = conv(od+dd[2],64,  kernel_size=3, stride=1)
-        self.conv3_4 = conv(od+dd[3],32,  kernel_size=3, stride=1)
+        self.conv3_1 = conv(od+dd[0],64, kernel_size=3, stride=1)
+        self.conv3_2 = conv(od+dd[1],32,  kernel_size=3, stride=1)
+        self.conv3_3 = conv(od+dd[2],16,  kernel_size=3, stride=1)
+        self.conv3_4 = conv(od+dd[3],8,  kernel_size=3, stride=1)
         self.predict_pose3 = predict_pose(od+dd[4]) 
         self.deconv3 = deconv(6, 6, kernel_size=4, stride=2, padding=1) 
         self.upfeat3 = deconv(od+dd[4], 6, kernel_size=4, stride=2, padding=1) 
         
         od = nd+num_decoder_channels[1]+12
         self.conv2_0 = conv(od,      128, kernel_size=3, stride=1)
-        self.conv2_1 = conv(od+dd[0],128, kernel_size=3, stride=1)
-        self.conv2_2 = conv(od+dd[1],96,  kernel_size=3, stride=1)
-        self.conv2_3 = conv(od+dd[2],64,  kernel_size=3, stride=1)
-        self.conv2_4 = conv(od+dd[3],32,  kernel_size=3, stride=1)
+        self.conv2_1 = conv(od+dd[0],64, kernel_size=3, stride=1)
+        self.conv2_2 = conv(od+dd[1],32,  kernel_size=3, stride=1)
+        self.conv2_3 = conv(od+dd[2],16,  kernel_size=3, stride=1)
+        self.conv2_4 = conv(od+dd[3],8,  kernel_size=3, stride=1)
         self.predict_pose2 = predict_pose(od+dd[4]) 
         self.deconv2 = deconv(6, 6, kernel_size=4, stride=2, padding=1) 
         self.upfeat2 = deconv(od+dd[4], 6, kernel_size=4, stride=2, padding=1) 
         
         od = nd+num_decoder_channels[0]+12
         self.conv1_0 = conv(od,      128, kernel_size=3, stride=1)
-        self.conv1_1 = conv(od+dd[0],128, kernel_size=3, stride=1)
-        self.conv1_2 = conv(od+dd[1],96,  kernel_size=3, stride=1)
-        self.conv1_3 = conv(od+dd[2],64,  kernel_size=3, stride=1)
-        self.conv1_4 = conv(od+dd[3],32,  kernel_size=3, stride=1)
+        self.conv1_1 = conv(od+dd[0],64, kernel_size=3, stride=1)
+        self.conv1_2 = conv(od+dd[1],32,  kernel_size=3, stride=1)
+        self.conv1_3 = conv(od+dd[2],16,  kernel_size=3, stride=1)
+        self.conv1_4 = conv(od+dd[3],8,  kernel_size=3, stride=1)
         self.predict_pose = predict_pose(od+dd[4]) 
 
         for m in self.modules():
