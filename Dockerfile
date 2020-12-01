@@ -19,7 +19,10 @@ WORKDIR /app/nikhil/monodepth2
 
 RUN pip3 install -r requirements.txt
 
-WORKDIR /app/nikhil
+WORKDIR /app/nikhil/monodepth2/correlation_package
 
-RUN git clone https://github.com/facebookresearch/detectron2.git
-RUN pip3 install -e detectron2
+RUN rm -rf *_cuda.egg-info build dist __pycache__
+RUN python3 setup.py install --user
+
+# RUN git clone https://github.com/facebookresearch/detectron2.git
+# RUN pip3 install -e detectron2
