@@ -159,7 +159,6 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv1_4(x), x),1)
         pose = self.pose_scale_factor * self.predict_pose(x)
         prefix = "backward_" if backward else "forward_"
-        print(pose)
         outputs.update({
             (prefix +"pose", 0): pose,
             (prefix +"pose", 1): pose2,
