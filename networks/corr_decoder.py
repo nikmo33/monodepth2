@@ -30,7 +30,7 @@ class CorrDecoder(nn.Module):
         super(CorrDecoder, self).__init__()
         self.corr    = SpatialCorrelationSampler(kernel_size=1, patch_size=max_displacement * 2 + 1, stride=1, padding=0, dilation_patch=1)
         self.leakyRELU = nn.LeakyReLU(0.1)
-        
+        self.compute_backward_pose = True
         nd = (2*max_displacement+1)**2
         dd = np.cumsum([128,128,96,64,32])
         self.egomotion_scale_factor = egomotion_scale_factor
@@ -78,30 +78,20 @@ class CorrDecoder(nn.Module):
                 if m.bias is not None:
                     m.bias.data.zero_()
 
+    def compute_pose(all_features, all_outputs, intrinsics, intrinsics_inv, backward=False):
+        source_index = 0
+        target_index = 1
+        if backward:
+            source_index = 1
+            target_index = 0
+        c11, c12, c13, c14 = [feat[source_index] for feat in all_features]
+        c21, c22, c23, c24 = [feat[target_index] for feat in all_features]
 
-    def forward(self, all_features, all_outputs, intrinsics, intrinsics_inv):
-        self.outputs = {}
-        c11, c12, c13, c14 = [feat[0] for feat in all_features]
-        c21, c22, c23, c24 = [feat[1] for feat in all_features]
+        d11, d12, d13, d14 = [output[source_index] for output in all_outputs]
+        d21, d22, d23, d24 = [output[target_index] for output in all_outputs]
 
-        d11, d12, d13, d14 = [output[0] for output in all_outputs]
-        d21, d22, d23, d24 = [output[1] for output in all_outputs]
-
-        i11, i12, i13, i14 = intrinsics
-        inv11, inv12, inv13, inv14 = intrinsics_inv
-
-        depth_output = {
-            ("source_depth", 0): d11,
-            ("source_depth", 1): d12,
-            ("source_depth", 2): d13,
-            ("source_depth", 3): d14,
-            ("target_depth", 0): d21,
-            ("target_depth", 1): d22,
-            ("target_depth", 2): d23,
-            ("target_depth", 3): d24,
-            
-        }
-
+        i11, i12, i13, i14 = [i[..., :3, :3] for i in intrinsics]
+        inv11, inv12, inv13, inv14 =  [i[..., :3, :3] for i in intrinsics_inv]
         corr4 = self.corr(c14, c24)  
         corr4 = self.leakyRELU(corr4)
         # x = torch.cat((corr4, c14, up_pose5, up_feat5), 1)
@@ -115,7 +105,7 @@ class CorrDecoder(nn.Module):
         up_feat4 = self.upfeat4(x)
 
 
-        warp3 = inverse_warp(c23, d13, up_pose4, i13, inv13)
+        warp3, _, _, _ = inverse_warp(c23, d13, up_pose4, i13, inv13)
         corr3 = self.corr(c13, warp3) 
         corr3 = self.leakyRELU(corr3)
         
@@ -131,7 +121,7 @@ class CorrDecoder(nn.Module):
         up_feat3 = self.upfeat3(x)
 
 
-        warp2 = inverse_warp(c22, d12, up_pose3, i12, inv12) 
+        warp2, _, _, _ = inverse_warp(c22, d12, up_pose3, i12, inv12) 
         corr2 = self.corr(c12, warp2)
         corr2 = self.leakyRELU(corr2)
         x = torch.cat((corr2, c12, up_pose3, up_feat3), 1)
@@ -144,7 +134,7 @@ class CorrDecoder(nn.Module):
         up_pose2 = self.deconv2(pose2)
         up_feat2 = self.upfeat2(x)
  
-        warp1 = inverse_warp(c21, d11, up_pose2, i11, inv11) 
+        warp1, _, _, _ = inverse_warp(c21, d11, up_pose2, i11, inv11) 
         corr1 = self.corr(c11, warp1)
         corr1 = self.leakyRELU(corr1)
         x = torch.cat((corr1, c11, up_pose2, up_feat2), 1)
@@ -154,10 +144,33 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv1_3(x), x),1)
         x = torch.cat((self.conv1_4(x), x),1)
         pose = self.egomotion_scale_factor * self.predict_pose(x)
-        
+        prefix = "backward_" if backward_pose else "forward_"
         return {
-            ("forward_pose", 0): pose,
-            ("forward_pose", 1): pose2,
-            ("forward_pose", 2): pose3,
-            ("forward_pose", 3): pose4,
+            (prefix +"pose", 0): pose,
+            (prefix +"pose", 1): pose2,
+            (prefix +"pose", 2): pose3,
+            (prefix +"pose", 3): pose4,
         }
+    def forward(self, all_features, all_outputs, intrinsics, intrinsics_inv):
+        self.outputs = {}
+        
+
+        outputs = {
+            ("depth", 0, 0): d11,
+            ("depth", 0, 1): d12,
+            ("depth", 0, 2): d13,
+            ("depth", 0, 3): d14,
+            ("depth", 1, 0): d21,
+            ("depth", 1, 1): d22,
+            ("depth", 1, 2): d23,
+            ("depth", 1, 3): d24,
+            
+        }
+
+        pose = self.compute_pose(all_features, all_outputs, intrinsics, intrinsics_inv)
+        outputs.update(pose)
+        if self.compute_backward_pose:
+            backward_pose = self.compute_pose(all_features, all_outputs, intrinsics, intrinsics_inv, backward=True)
+            outputs.update(backward_pose)
+
+        return outptus
