@@ -26,14 +26,14 @@ def deconv(in_planes, out_planes, kernel_size=4, stride=2, padding=1):
     return nn.ConvTranspose2d(in_planes, out_planes, kernel_size, stride, padding, bias=True)
 
 class CorrDecoder(nn.Module):
-    def __init__(self, num_decoder_channels, max_displacement=4, lrelu_slope=0.01, egomotion_scale_factor=0.01):
+    def __init__(self, num_decoder_channels, max_displacement=4, lrelu_slope=0.01, pose_scale_factor=0.01):
         super(CorrDecoder, self).__init__()
         self.corr    = SpatialCorrelationSampler(kernel_size=1, patch_size=max_displacement * 2 + 1, stride=1, padding=0, dilation_patch=1)
         self.leakyRELU = nn.LeakyReLU(0.1)
         self.compute_backward_pose = True
         nd = (2*max_displacement+1)**2
         dd = np.cumsum([128,64,32,16,8])
-        self.egomotion_scale_factor = egomotion_scale_factor
+        self.pose_scale_factor = pose_scale_factor
         od = nd
         self.conv4_0 = conv(od,      128, kernel_size=3, stride=1)
         self.conv4_1 = conv(od+dd[0],64, kernel_size=3, stride=1)
@@ -43,9 +43,9 @@ class CorrDecoder(nn.Module):
         self.predict_pose4 = predict_pose(od+dd[4]) 
         self.deconv4 = deconv(6, 6, kernel_size=4, stride=2, padding=1) 
         self.upfeat4 = deconv(od+dd[4], 6, kernel_size=4, stride=2, padding=1) 
-        
+        dd = np.cumsum([64,64,32,16,8])
         od = nd+num_decoder_channels[2]+12
-        self.conv3_0 = conv(od,      128, kernel_size=3, stride=1)
+        self.conv3_0 = conv(od,      64, kernel_size=3, stride=1)
         self.conv3_1 = conv(od+dd[0],64, kernel_size=3, stride=1)
         self.conv3_2 = conv(od+dd[1],32,  kernel_size=3, stride=1)
         self.conv3_3 = conv(od+dd[2],16,  kernel_size=3, stride=1)
@@ -53,17 +53,17 @@ class CorrDecoder(nn.Module):
         self.predict_pose3 = predict_pose(od+dd[4]) 
         self.deconv3 = deconv(6, 6, kernel_size=4, stride=2, padding=1) 
         self.upfeat3 = deconv(od+dd[4], 6, kernel_size=4, stride=2, padding=1) 
-        
+        dd = np.cumsum([32,32,32,16,8])
         od = nd+num_decoder_channels[1]+12
-        self.conv2_0 = conv(od,      128, kernel_size=3, stride=1)
-        self.conv2_1 = conv(od+dd[0],64, kernel_size=3, stride=1)
+        self.conv2_0 = conv(od,      32, kernel_size=3, stride=1)
+        self.conv2_1 = conv(od+dd[0],32, kernel_size=3, stride=1)
         self.conv2_2 = conv(od+dd[1],32,  kernel_size=3, stride=1)
         self.conv2_3 = conv(od+dd[2],16,  kernel_size=3, stride=1)
         self.conv2_4 = conv(od+dd[3],8,  kernel_size=3, stride=1)
         self.predict_pose2 = predict_pose(od+dd[4]) 
         self.deconv2 = deconv(6, 6, kernel_size=4, stride=2, padding=1) 
         self.upfeat2 = deconv(od+dd[4], 6, kernel_size=4, stride=2, padding=1) 
-        
+        dd = np.cumsum([16,16,16,16,8])
         od = nd+num_decoder_channels[0]+12
         self.conv1_0 = conv(od,      128, kernel_size=3, stride=1)
         self.conv1_1 = conv(od+dd[0],64, kernel_size=3, stride=1)
@@ -114,7 +114,7 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv4_2(x), x),1)
         x = torch.cat((self.conv4_3(x), x),1)
         x = torch.cat((self.conv4_4(x), x),1)
-        pose4 = self.egomotion_scale_factor * self.predict_pose4(x)
+        pose4 = self.pose_scale_factor * self.predict_pose4(x)
         up_pose4 = self.deconv4(pose4)
         up_feat4 = self.upfeat4(x)
 
@@ -130,7 +130,7 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv3_2(x), x),1)
         x = torch.cat((self.conv3_3(x), x),1)
         x = torch.cat((self.conv3_4(x), x),1)
-        pose3 = self.egomotion_scale_factor * self.predict_pose3(x)
+        pose3 = self.pose_scale_factor * self.predict_pose3(x)
         up_pose3 = self.deconv3(pose3)
         up_feat3 = self.upfeat3(x)
 
@@ -144,7 +144,7 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv2_2(x), x),1)
         x = torch.cat((self.conv2_3(x), x),1)
         x = torch.cat((self.conv2_4(x), x),1)
-        pose2 = self.egomotion_scale_factor * self.predict_pose2(x)
+        pose2 = self.pose_scale_factor * self.predict_pose2(x)
         up_pose2 = self.deconv2(pose2)
         up_feat2 = self.upfeat2(x)
  
@@ -157,7 +157,7 @@ class CorrDecoder(nn.Module):
         x = torch.cat((self.conv1_2(x), x),1)
         x = torch.cat((self.conv1_3(x), x),1)
         x = torch.cat((self.conv1_4(x), x),1)
-        pose = self.egomotion_scale_factor * self.predict_pose(x)
+        pose = self.pose_scale_factor * self.predict_pose(x)
         prefix = "backward_" if backward else "forward_"
         outputs.update({
             (prefix +"pose", 0): pose,
