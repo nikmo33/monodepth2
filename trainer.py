@@ -253,8 +253,8 @@ class Trainer:
 
             # backward_flow_from_forward_flow = flow_inverse_warp(forward_flow, backward_flow)
             # forward_flow_from_backward_flow = flow_inverse_warp(backward_flow, forward_flow)
-            forward_flow_mask = compute_flow_mask(forward_flow, forward_flow_from_backward_flow)
-            backward_flow_mask = compute_flow_mask(backward_flow, backward_flow_from_forward_flow)
+            # forward_flow_mask = compute_flow_mask(forward_flow, forward_flow_from_backward_flow)
+            # backward_flow_mask = compute_flow_mask(backward_flow, backward_flow_from_forward_flow)
 
             im0_hat, im0_transformed_depth, im1_sampled_depth, valid_mask0 = inverse_warp(im1, im0_depth, forward_pose, intrinsics, intrinsics_inv, im1_depth)
             im1_hat, im1_transformed_depth, im0_sampled_depth, valid_mask1 = inverse_warp(im0, im1_depth, backward_pose, intrinsics, intrinsics_inv, im0_depth)
@@ -268,10 +268,10 @@ class Trainer:
             im1_smooth_loss = edge_aware_smooth_loss(im1_depth, aux=im1)
             model_outputs[("color", 0, scale)] = im0_hat
             model_outputs[("color", 1, scale)] = im1_hat
-            model_outputs[("flow_mask", 0, scale)] = forward_flow_mask
-            model_outputs[("flow_mask", 1, scale)] = backward_flow_mask
-            model_outputs[("flow", 0, scale)] = forward_flow
-            model_outputs[("flow", 1, scale)] = backward_flow
+            # model_outputs[("flow_mask", 0, scale)] = forward_flow_mask
+            # model_outputs[("flow_mask", 1, scale)] = backward_flow_mask
+            # model_outputs[("flow", 0, scale)] = forward_flow
+            # model_outputs[("flow", 1, scale)] = backward_flow
             loss[f'scale{scale}'] = self.opt.photo_loss_weight * (im0_recon_loss + im1_recon_loss) + self.opt.smooth_loss_weight * (im0_smooth_loss + im1_smooth_loss)
         return loss
 
@@ -335,13 +335,13 @@ class Trainer:
                             "color_pred_{}_{}/{}".format(frame_id, s, j),
                             outputs[("color", frame_id, s)][j].data, self.step)
 
-                    writer.add_image(
-                        "flow_pred_{}_{}/{}".format(frame_id, s, j),
-                        flow_to_image(outputs[("flow", frame_id, s)][j].detach().cpu().numpy()), self.step)
+                    # writer.add_image(
+                    #     "flow_pred_{}_{}/{}".format(frame_id, s, j),
+                    #     flow_to_image(outputs[("flow", frame_id, s)][j].detach().cpu().numpy()), self.step)
 
-                    writer.add_image(
-                        "mask_from_flow_{}_{}/{}".format(frame_id, s, j),
-                        heatmap_image(outputs[("flow_mask",frame_id, s)][j].float().detach().cpu().numpy()), self.step)
+                    # writer.add_image(
+                    #     "mask_from_flow_{}_{}/{}".format(frame_id, s, j),
+                    #     heatmap_image(outputs[("flow_mask",frame_id, s)][j].float().detach().cpu().numpy()), self.step)
                     writer.add_image(
                         "depth_{}_{}/{}".format(frame_id, s, j),
                     heatmap_image(outputs[("depth",frame_id, s)][j].detach().cpu().numpy()), self.step)
